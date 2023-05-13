@@ -2,3 +2,4 @@ data
 datasets
 processed
 training
+checkpoints
