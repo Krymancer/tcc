@@ -83,6 +83,8 @@ def get_efficientnetb0():
 
     # Add a dense output layer for classification
     model.add(tf.keras.layers.Dense(10, activation='softmax'))
+    model.add(Dense(1, activation = 'sigmoid'))
+
     opt = tf.keras.optimizers.Adam(
       learning_rate= 0.01,
       beta_1=0.9,
@@ -107,7 +109,9 @@ def get_efficientnetb7():
     ])
 
     # Add a dense output layer for classification
-    model.add(tf.keras.layers.Dense(10, activation='softmax'))
+    model.add(Dense(10, activation='softmax'))
+    model.add(Dense(1, activation = 'sigmoid'))
+
     opt = tf.keras.optimizers.Adam(
       learning_rate= 0.01,
       beta_1=0.9,
@@ -132,7 +136,9 @@ def get_resnet():
     ])
 
     # Add a dense output layer for classification
-    model.add(tf.keras.layers.Dense(10, activation='softmax'))
+    model.add(Dense(10, activation='softmax'))
+    model.add(Dense(1, activation = 'sigmoid'))
+
     opt = tf.keras.optimizers.Adam(
       learning_rate= 0.01,
       beta_1=0.9,
@@ -151,7 +157,7 @@ def get_resnet():
     return model
 
 def main():
-    classifier = get_vgg19()
+    classifier = get_efficientnetb7()
 
     train_ds, test_ds, val_ds = get_data()
 
