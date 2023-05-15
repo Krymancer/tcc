@@ -15,14 +15,18 @@ from tensorflow.keras.layers import Dense, Flatten
 import pandas as pd
 import numpy as np
 import os
+from tensorflow.keras.models import Model as KerasModel
+from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, MaxPooling2D, BatchNormalization, Dropout, Reshape, Concatenate, LeakyReLU
 
 def get_data():
     seed_train_validation = 1
     shuffle_value = True
     validation_split = 0.3
 
+    path = os.path.join('training','01')
+
     train_ds = tf.keras.utils.image_dataset_from_directory(
-      directory='data',
+      directory=path,
       image_size=(224,224),
       validation_split=validation_split,
       subset='training',
@@ -31,7 +35,7 @@ def get_data():
     )
 
     validation_ds = tf.keras.utils.image_dataset_from_directory(
-      directory='data',
+      directory=path,
       image_size=(224,224),
       validation_split=validation_split,
       subset='validation',
@@ -51,6 +55,7 @@ def loss_fn(labels, predictions):
     name=None).numpy()[0,1]
 
 def get_vgg19():
+    print('using vgg19')
     model = VGG19(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 
     opt = tf.keras.optimizers.Adam(
@@ -76,6 +81,8 @@ def get_vgg19():
     return classifier
 
 def get_efficientnetb0():
+    print('using efficientnetb0')
+
     model = tf.keras.Sequential([
     hub.KerasLayer("https://tfhub.dev/google/efficientnet/b0/feature-vector/1", 
                    trainable=False)
@@ -103,6 +110,8 @@ def get_efficientnetb0():
     return model
 
 def get_efficientnetb7():
+    print('using efficientnetb7')
+    
     model = tf.keras.Sequential([
     hub.KerasLayer("https://tfhub.dev/google/efficientnet/b7/feature-vector/1", 
                    trainable=False)
@@ -130,6 +139,8 @@ def get_efficientnetb7():
     return model
 
 def get_resnet():
+    print('using resnet_v2_50')
+    
     # Load the ResNet50 model from TensorFlow Hub
     model = tf.keras.Sequential([
         hub.KerasLayer("https://tfhub.dev/google/imagenet/resnet_v2_50/classification/5")
@@ -156,8 +167,85 @@ def get_resnet():
 
     return model
 
+def get_efficientnetb7_new_arch():
+    print('using efficientnetb7 new arch')
+    
+    classifier = Sequential(hub.KerasLayer("https://tfhub.dev/google/efficientnet/b7/feature-vector/1", 
+                   trainable=False))
+    classifier.add(Flatten())
+    classifier.add(Dense(1024, activation='relu'))
+    classifier.add(Dense(1, activation = 'sigmoid'))
+
+    opt = tf.keras.optimizers.Adam(
+      learning_rate= 0.01,
+      beta_1=0.9,
+      beta_2=0.999,
+      epsilon=1e-07,
+      amsgrad=False)
+
+    tp = tf.keras.metrics.TruePositives(thresholds=None, name=None, dtype=None)
+    tn = tf.keras.metrics.TrueNegatives(thresholds=None, name=None, dtype=None)
+    fp = tf.keras.metrics.FalsePositives(thresholds=None, name=None, dtype=None)
+    fn = tf.keras.metrics.FalseNegatives(thresholds=None, name=None, dtype=None)
+
+    # Add a dense output layer for classification
+    classifier.compile(optimizer = opt, loss = 'binary_crossentropy', metrics = ['accuracy', tp,tn,fp,fn])
+
+    return classifier
+
+def get_mesonet():
+    print('using mesonet')
+    x = Input(shape = (224, 224, 3))
+    
+    x1 = Conv2D(8, (3, 3), padding='same', activation = 'relu')(x)
+    x1 = BatchNormalization()(x1)
+    x1 = MaxPooling2D(pool_size=(2, 2), padding='same')(x1)
+    
+    x2 = Conv2D(8, (5, 5), padding='same', activation = 'relu')(x1)
+    x2 = BatchNormalization()(x2)
+    x2 = MaxPooling2D(pool_size=(2, 2), padding='same')(x2)
+    
+    x3 = Conv2D(16, (5, 5), padding='same', activation = 'relu')(x2)
+    x3 = BatchNormalization()(x3)
+    x3 = MaxPooling2D(pool_size=(2, 2), padding='same')(x3)
+    
+    x4 = Conv2D(16, (5, 5), padding='same', activation = 'relu')(x3)
+    x4 = BatchNormalization()(x4)
+    x4 = MaxPooling2D(pool_size=(4, 4), padding='same')(x4)
+    
+    y = Flatten()(x4)
+    y = Dropout(0.5)(y)
+    y = Dense(16)(y)
+    y = LeakyReLU(alpha=0.1)(y)
+    y = Dropout(0.5)(y)
+    y = Dense(1, activation = 'sigmoid')(y)
+
+    model = KerasModel(x,y)
+
+    opt = tf.keras.optimizers.Adam(
+      learning_rate= 0.01,
+      beta_1=0.9,
+      beta_2=0.999,
+      epsilon=1e-07,
+      amsgrad=False)
+
+    tp = tf.keras.metrics.TruePositives(thresholds=None, name=None, dtype=None)
+    tn = tf.keras.metrics.TrueNegatives(thresholds=None, name=None, dtype=None)
+    fp = tf.keras.metrics.FalsePositives(thresholds=None, name=None, dtype=None)
+    fn = tf.keras.metrics.FalseNegatives(thresholds=None, name=None, dtype=None)
+
+    # Add a dense output layer for classification
+    model.compile(optimizer = opt, loss = 'mean_squared_error', metrics = ['accuracy', tp,tn,fp,fn])
+
+    return model
+
 def main():
-    classifier = get_efficientnetb7()
+    #classifier = get_vgg19()
+    #classifier = get_efficientnetb0()
+    #classifier = get_efficientnetb7()
+    #classifier = get_resnet()
+    #classifier = get_efficientnetb7_new_arch()
+    classifier = get_mesonet()
 
     train_ds, test_ds, val_ds = get_data()
 
