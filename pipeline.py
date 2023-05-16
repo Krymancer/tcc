@@ -11,7 +11,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.applications.vgg19 import VGG19
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.layers import Dense, Flatten, Activation
 import pandas as pd
 import numpy as np
 import os
@@ -23,7 +23,9 @@ def get_data():
     shuffle_value = True
     validation_split = 0.3
 
-    path = os.path.join('training','01')
+    path = os.path.join('training','02')
+
+    print(f'using this dataset: {path}')
 
     train_ds = tf.keras.utils.image_dataset_from_directory(
       directory=path,
@@ -239,18 +241,74 @@ def get_mesonet():
 
     return model
 
+def get_new_arch():
+    print('using chatgpt')
+    # Input layer
+    input_shape = (224, 224, 3)
+    inputs = Input(shape=input_shape)
+
+    # Convolutional layers
+    x = Conv2D(16, (3, 3), padding='same')(inputs)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    x = Conv2D(32, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    x = Conv2D(64, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    x = Conv2D(128, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    # Flatten and dense layers
+    x = Flatten()(x)
+    x = Dropout(0.5)(x)
+    x = Dense(256)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Dropout(0.5)(x)
+    outputs = Dense(1, activation='sigmoid')(x)
+
+    # Create the model
+    model = KerasModel(inputs=inputs, outputs=outputs)
+
+    opt = tf.keras.optimizers.Adam(
+      learning_rate= 0.01,
+      beta_1=0.9,
+      beta_2=0.999,
+      epsilon=1e-07,
+      amsgrad=False)
+
+    tp = tf.keras.metrics.TruePositives(thresholds=None, name=None, dtype=None)
+    tn = tf.keras.metrics.TrueNegatives(thresholds=None, name=None, dtype=None)
+    fp = tf.keras.metrics.FalsePositives(thresholds=None, name=None, dtype=None)
+    fn = tf.keras.metrics.FalseNegatives(thresholds=None, name=None, dtype=None)
+
+    # Add a dense output layer for classification
+    model.compile(optimizer = opt, loss = 'mean_squared_error', metrics = ['accuracy', tp,tn,fp,fn])
+    return model
+
 def main():
     #classifier = get_vgg19()
     #classifier = get_efficientnetb0()
     #classifier = get_efficientnetb7()
     #classifier = get_resnet()
     #classifier = get_efficientnetb7_new_arch()
-    classifier = get_mesonet()
+    #classifier = get_mesonet()
+    classifier = get_new_arch()
 
     train_ds, test_ds, val_ds = get_data()
 
     my_callbacks = [
-      tf.keras.callbacks.EarlyStopping(patience=2),
+      tf.keras.callbacks.EarlyStopping(patience=10),
       tf.keras.callbacks.ModelCheckpoint(filepath='./checkpoints/model.{epoch:02d}-{val_loss:.2f}.h5'),
       tf.keras.callbacks.TensorBoard(log_dir='./logs'),
     ]
