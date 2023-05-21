@@ -169,7 +169,7 @@ def get_resnet():
 
     return model
 
-def get_efficientnetb7_new_arch():
+def get_efficientnetb7_custom():
     print('using efficientnetb7 new arch')
     
     classifier = Sequential(hub.KerasLayer("https://tfhub.dev/google/efficientnet/b7/feature-vector/1", 
@@ -241,8 +241,8 @@ def get_mesonet():
 
     return model
 
-def get_new_arch():
-    print('using chatgpt')
+def get_mesonet_custom():
+    print('using mesonet_custom')
     # Input layer
     input_shape = (224, 224, 3)
     inputs = Input(shape=input_shape)
@@ -296,14 +296,66 @@ def get_new_arch():
     model.compile(optimizer = opt, loss = 'mean_squared_error', metrics = ['accuracy', tp,tn,fp,fn])
     return model
 
+def get_mesonet_custom_512():
+    print('using mesonet_custom_512')
+    # Input layer
+    input_shape = (224, 224, 3)
+    inputs = Input(shape=input_shape)
+
+    # Convolutional layers
+    x = Conv2D(32, (3, 3), padding='same')(inputs)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    x = Conv2D(64, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    x = Conv2D(128, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    x = Conv2D(256, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    # Flatten and dense layers
+    x = Flatten()(x)
+    x = Dropout(0.5)(x)
+    x = Dense(512)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Dropout(0.5)(x)
+    outputs = Dense(1, activation='sigmoid')(x)
+
+    model = KerasModel(inputs=inputs, outputs=outputs)
+
+    
+    opt = Adam(learning_rate=0.001)
+    loss = tf.keras.losses.BinaryCrossentropy()
+
+    tp = tf.keras.metrics.TruePositives(thresholds=None, name=None, dtype=None)
+    tn = tf.keras.metrics.TrueNegatives(thresholds=None, name=None, dtype=None)
+    fp = tf.keras.metrics.FalsePositives(thresholds=None, name=None, dtype=None)
+    fn = tf.keras.metrics.FalseNegatives(thresholds=None, name=None, dtype=None)
+
+    # Add a dense output layer for classification
+    model.compile(optimizer=opt, loss=loss, metrics=['accuracy', tp, tn, fp, fn])
+    return model
+
 def main():
     #classifier = get_vgg19()
     #classifier = get_efficientnetb0()
     #classifier = get_efficientnetb7()
     #classifier = get_resnet()
-    #classifier = get_efficientnetb7_new_arch()
+    #classifier = get_efficientnetb7_custom()
     #classifier = get_mesonet()
-    classifier = get_new_arch()
+    #classifier = get_mesonet_custom()
+    classifier = get_mesonet_custom_512()
 
     train_ds, test_ds, val_ds = get_data()
 
