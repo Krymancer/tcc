@@ -9,6 +9,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.applications.vgg19 import VGG19
+from tensorflow.keras.applications import EfficientNetB7
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense, Flatten, Activation
@@ -170,7 +171,7 @@ def get_resnet():
     return model
 
 def get_efficientnetb7_custom():
-    print('using efficientnetb7 new arch')
+    print('using efficientnetb7 new efficientnetb7_custom')
     
     classifier = Sequential(hub.KerasLayer("https://tfhub.dev/google/efficientnet/b7/feature-vector/1", 
                    trainable=False))
@@ -347,15 +348,133 @@ def get_mesonet_custom_512():
     model.compile(optimizer=opt, loss=loss, metrics=['accuracy', tp, tn, fp, fn])
     return model
 
+def get_mesonet_custom_512_with_vgg19():
+    print('using mesonet_custom_512_with_vgg19')
+    
+    # Load the VGG19 model without the top layers
+    vgg19 = VGG19(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+
+    # Freeze the weights of the VGG19 layers
+    for layer in vgg19.layers:
+        layer.trainable = False
+
+    # Input layer
+    input_shape = (224, 224, 3)
+    inputs = Input(shape=input_shape)
+
+    # Pass the input through the VGG19 base
+    vgg19_output = vgg19(inputs)
+
+    # Additional convolutional layer
+    x = Conv2D(256, (3, 3), padding='same')(vgg19_output)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
+    # Convolutional layers
+    x = Conv2D(32, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    x = Conv2D(64, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    # Flatten and dense layers
+    x = Flatten()(x)
+    x = Dropout(0.5)(x)
+    x = Dense(512)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Dropout(0.5)(x)
+    outputs = Dense(1, activation='sigmoid')(x)
+
+    # Combine the VGG19 base and your custom layers
+    model = KerasModel(inputs=inputs, outputs=outputs)
+
+    opt = Adam(learning_rate=0.001)
+    loss = tf.keras.losses.BinaryCrossentropy()
+
+    tp = tf.keras.metrics.TruePositives(thresholds=None, name=None, dtype=None)
+    tn = tf.keras.metrics.TrueNegatives(thresholds=None, name=None, dtype=None)
+    fp = tf.keras.metrics.FalsePositives(thresholds=None, name=None, dtype=None)
+    fn = tf.keras.metrics.FalseNegatives(thresholds=None, name=None, dtype=None)
+
+    # Compile the model
+    model.compile(optimizer=opt, loss=loss, metrics=['accuracy', tp, tn, fp, fn])
+
+    return model
+
+def get_mesonet_custom_512_with_efficientnetb7():
+    print('using mesonet_custom_512_with_efficientnet')
+
+    # Load the EfficientNetB7 model without the top layers
+    efficientnet = EfficientNetB7(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+
+    # Freeze the weights of the EfficientNetB7 layers
+    for layer in efficientnet.layers:
+        layer.trainable = False
+
+    # Input layer
+    input_shape = (224, 224, 3)
+    inputs = Input(shape=input_shape)
+
+    # Pass the input through the EfficientNetB7 base
+    efficientnet_output = efficientnet(inputs)
+
+    # Additional convolutional layer
+    x = Conv2D(256, (3, 3), padding='same')(efficientnet_output)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
+    # Convolutional layers
+    x = Conv2D(32, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    x = Conv2D(64, (3, 3), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    # Flatten and dense layers
+    x = Flatten()(x)
+    x = Dropout(0.5)(x)
+    x = Dense(512)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Dropout(0.5)(x)
+    outputs = Dense(1, activation='sigmoid')(x)
+
+    # Combine the EfficientNetB7 base and your custom layers
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+    opt = Adam(learning_rate=0.001)
+    loss = tf.keras.losses.BinaryCrossentropy()
+
+    tp = tf.keras.metrics.TruePositives(thresholds=None, name=None, dtype=None)
+    tn = tf.keras.metrics.TrueNegatives(thresholds=None, name=None, dtype=None)
+    fp = tf.keras.metrics.FalsePositives(thresholds=None, name=None, dtype=None)
+    fn = tf.keras.metrics.FalseNegatives(thresholds=None, name=None, dtype=None)
+
+    # Compile the model
+    model.compile(optimizer=opt, loss=loss, metrics=['accuracy', tp, tn, fp, fn])
+
+    return model
+
 def main():
-    #classifier = get_vgg19()
-    #classifier = get_efficientnetb0()
-    #classifier = get_efficientnetb7()
-    #classifier = get_resnet()
-    #classifier = get_efficientnetb7_custom()
-    #classifier = get_mesonet()
-    #classifier = get_mesonet_custom()
-    classifier = get_mesonet_custom_512()
+    #classifier = get_vgg19() #
+    #classifier = get_efficientnetb0() #
+    #classifier = get_efficientnetb7() #
+    #classifier = get_resnet() #
+    #classifier = get_efficientnetb7_custom() #
+    #classifier = get_mesonet() #
+    #classifier = get_mesonet_custom() #
+    #classifier = get_mesonet_custom_512() #
+    #classifier = get_mesonet_custom_512_with_vgg19() #
+    #classifier = get_mesonet_custom_512_with_efficientnetb7() #
 
     train_ds, test_ds, val_ds = get_data()
 
