@@ -4,20 +4,26 @@ from os import environ
 environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import time
+import os
 
 import tensorflow as tf
 import tensorflow_hub as hub
+from tensorflow.keras.models import Model as KerasModel
+from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, MaxPooling2D, BatchNormalization, Dropout, Reshape, Concatenate, LeakyReLU
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.applications.vgg19 import VGG19
 from tensorflow.keras.applications import EfficientNetB7
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense, Flatten, Activation
+from tensorflow.keras import Sequential
 import pandas as pd
 import numpy as np
-import os
-from tensorflow.keras.models import Model as KerasModel
-from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, MaxPooling2D, BatchNormalization, Dropout, Reshape, Concatenate, LeakyReLU
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_curve, auc, confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+name = 'NAME'
 
 def get_data():
     seed_train_validation = 1
@@ -58,6 +64,8 @@ def loss_fn(labels, predictions):
     name=None).numpy()[0,1]
 
 def get_vgg19():
+    global name
+    name = 'vgg19'
     print('using vgg19')
     model = VGG19(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 
@@ -84,6 +92,8 @@ def get_vgg19():
     return classifier
 
 def get_efficientnetb0():
+    global name
+    name = 'efficientnetb0'
     print('using efficientnetb0')
 
     model = tf.keras.Sequential([
@@ -113,6 +123,8 @@ def get_efficientnetb0():
     return model
 
 def get_efficientnetb7():
+    global name
+    name = 'efficientnetb7'
     print('using efficientnetb7')
     
     model = tf.keras.Sequential([
@@ -142,6 +154,8 @@ def get_efficientnetb7():
     return model
 
 def get_resnet():
+    global name
+    name = 'resnet_v2_50'
     print('using resnet_v2_50')
     
     # Load the ResNet50 model from TensorFlow Hub
@@ -171,7 +185,9 @@ def get_resnet():
     return model
 
 def get_efficientnetb7_custom():
-    print('using efficientnetb7 new efficientnetb7_custom')
+    global name
+    name = 'efficientnetb7_custom'
+    print('using efficientnetb7_custom')
     
     classifier = Sequential(hub.KerasLayer("https://tfhub.dev/google/efficientnet/b7/feature-vector/1", 
                    trainable=False))
@@ -197,6 +213,8 @@ def get_efficientnetb7_custom():
     return classifier
 
 def get_mesonet():
+    global name
+    name = 'mesonet'
     print('using mesonet')
     x = Input(shape = (224, 224, 3))
     
@@ -243,6 +261,8 @@ def get_mesonet():
     return model
 
 def get_mesonet_custom():
+    global name
+    name = 'mesonet_custom'
     print('using mesonet_custom')
     # Input layer
     input_shape = (224, 224, 3)
@@ -298,6 +318,8 @@ def get_mesonet_custom():
     return model
 
 def get_mesonet_custom_512():
+    global name
+    name = 'mesonet_custom_512'
     print('using mesonet_custom_512')
     # Input layer
     input_shape = (224, 224, 3)
@@ -349,6 +371,8 @@ def get_mesonet_custom_512():
     return model
 
 def get_mesonet_custom_512_with_vgg19():
+    global name
+    name = 'mesonet_custom_512_with_vgg19'
     print('using mesonet_custom_512_with_vgg19')
     
     # Load the VGG19 model without the top layers
@@ -407,6 +431,8 @@ def get_mesonet_custom_512_with_vgg19():
     return model
 
 def get_mesonet_custom_512_with_efficientnetb7():
+    global name
+    name = 'mesonet_custom_512_with_efficientnet'
     print('using mesonet_custom_512_with_efficientnet')
 
     # Load the EfficientNetB7 model without the top layers
@@ -464,23 +490,12 @@ def get_mesonet_custom_512_with_efficientnetb7():
 
     return model
 
-def main():
-    #classifier = get_vgg19() #
-    #classifier = get_efficientnetb0() #
-    #classifier = get_efficientnetb7() #
-    #classifier = get_resnet() #
-    #classifier = get_efficientnetb7_custom() #
-    #classifier = get_mesonet() #
-    #classifier = get_mesonet_custom() #
-    #classifier = get_mesonet_custom_512() #
-    #classifier = get_mesonet_custom_512_with_vgg19() #
-    #classifier = get_mesonet_custom_512_with_efficientnetb7() #
-
+def run(classifier):
     train_ds, test_ds, val_ds = get_data()
 
     my_callbacks = [
       tf.keras.callbacks.EarlyStopping(patience=10),
-      tf.keras.callbacks.ModelCheckpoint(filepath='./checkpoints/model.{epoch:02d}-{val_loss:.2f}.h5'),
+      #tf.keras.callbacks.ModelCheckpoint(filepath='./checkpoints/model.{epoch:02d}-{val_loss:.2f}.h5'),
       tf.keras.callbacks.TensorBoard(log_dir='./logs'),
     ]
 
@@ -508,6 +523,72 @@ def main():
     df.sort_values(by=['item'],ascending=True)
     print(df)
 
+    print_graphs(name, classifier, test_ds,history)
+
+def main():
+    #run(get_vgg19())
+    #run(get_efficientnetb0())
+    #run(get_efficientnetb7())
+    #run(get_resnet())
+    #run(get_efficientnetb7_custom())
+    #run(get_mesonet())
+    #run(get_mesonet_custom())
+    #run(get_mesonet_custom_512())
+    run(get_mesonet_custom_512_with_vgg19())
+    #run(get_mesonet_custom_512_with_efficientnetb7())
+
+def print_roc(test_dataset, model, name):
+    y_score = []
+    y_test = []
+
+    for x, y in test_dataset:
+        predictions = model.predict(x)
+        y_score.extend(predictions)
+        y_test.extend(y.numpy())
+
+    y_score = np.array(y_score)
+    y_test = np.array(y_test)
+
+    fpr, tpr, _ = roc_curve(y_test, y_score)
+    roc_auc = auc(fpr, tpr)
+
+    plt.figure(figsize=(12, 4))
+    plt.plot(fpr, tpr, color='darkorange', label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title(f'Receiver operating characteristic for {name}')
+    plt.legend(loc="lower right")
+    plt.show()
+    plt.savefig(f'graphs/roc-{name}.png')
+
+def print_acc(history, name):
+    # Plot training & validation accuracy values
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
+    plt.title(f'Model accuracy for {name}')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+
+    # Plot training & validation loss values
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('Model loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show()
+    plt.savefig(f'graphs/acc-{name}.png')
+
+def print_graphs(name, model, test_dataset, history):
+    print_acc(history, name)
+    print_roc(test_dataset, model, name)
 
 if __name__ == '__main__':
     t = time.process_time()

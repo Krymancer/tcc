@@ -33,7 +33,7 @@ def extract_data(path):
       t[label] = d[index:(index + size)]
       index += 6
     
-    save(model, t)
+    save_json(model, t)
 
 def save(model, table):
   with open('results/models/models.md', 'a') as file:
@@ -42,6 +42,13 @@ def save(model, table):
     file.write(f'|--|--|--|--|--|\n')
     for key, line in table.items():
       file.write(f'|{key}|{line[0]}|{line[1]}|{line[2]}|{line[3]}|\n')
+
+def save_json(model, table):
+  with open('results/models/models.json', 'a') as file:
+    file.write(f'{{\n    "name" : "{model}",\n')
+    for key, line in table.items():
+      file.write(f'    "{key}": [\n    {line[0]},\n    {line[1]},\n    {line[2]},\n    {line[3]}],\n')
+    file.write(f'\n}}')
 
 def cli_setup():
   parser = argparse.ArgumentParser()
